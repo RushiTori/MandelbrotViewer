@@ -1,0 +1,14 @@
+TODO: add zoom and panning
+
+TODO: add more color palettes
+	(default)      black/white gradient
+	(not done yet) hue gradient
+	(not done yet) custom color palette from CLI (not sure how to do that yet !)
+
+TODO: vectorize the computation
+
+TODO: don't use DrawPixel,
+	(not done yet) because of memory caching (steps and view stuff)
+	(not done yet) because you can use a texture instead with a static buffer for the pixels
+
+TODO: maybe implement multithreading
