@@ -7,13 +7,15 @@ MAX_ITER equ 200
 
 section      .rodata
 
+string(static, debug_fmt, "%g, {%g, %g}", 0xa, 0)
+
 var(static, double_t, neg_d, 0x8000_0000_0000_0000)
 
 var(static, double_t, inf_d, 100.0)
 var(static, double_t, one_over_max_iter_d, 0.005)
 var(static, double_t, uint8max_d, 255.0)
 
-var(static, float_t, zoom_factor_f, 0.99)
+var(static, float_t, zoom_factor_f, 0.97)
 var(static, uint64_t, pan_speed_x_u, 4)
 var(static, uint64_t, pan_speed_y_u, 4)
 
@@ -98,7 +100,6 @@ func(static, update_game)
 	; Update code goes here
 
 	; Handle zoom
-
 		call  GetMouseWheelMove
 		xorps xmm1, xmm1
 
@@ -109,6 +110,9 @@ func(static, update_game)
 		cvtss2sd xmm0,                    xmm0
 		movq     xmm1,                    double_p [world_size_d]
 		mulsd    xmm1,                    xmm0
+		movq     xmm0,                    double_p [neg_d]
+		orpd     xmm1,                    xmm0
+		xorpd    xmm1,                    xmm0
 		movq     double_p [world_size_d], xmm1
 		.skip_zoom:
 
@@ -145,12 +149,7 @@ func(static, update_game)
 		subsd xmm2,                       xmm0
 		movq  double_p [view_offset_y_d], xmm2
 
-
 		.skip_pan:
-
-
-
-
 
 	add rsp, 8
 	ret
