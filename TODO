@@ -5,7 +5,7 @@ TODO: add more color palettes
 	(not done yet) hue gradient
 	(not done yet) custom color palette from CLI (not sure how to do that yet !)
 
-TODO: vectorize the computation
+DONE: vectorize the computation
 
 TODO: don't use DrawPixel,
 	(not done yet) because of memory caching (steps and view stuff)
