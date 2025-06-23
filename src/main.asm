@@ -9,6 +9,8 @@ section      .rodata
 
 string(static, debug_fmt, "%g, {%g, %g}", 0xa, 0)
 
+var(static, double_t, one_d, 1.0)
+
 var(static, double_t, neg_d, 0x8000_0000_0000_0000)
 
 var(static, double_t, inf_d, 100.0)
@@ -99,6 +101,29 @@ func(static, update_game)
 	
 	; Update code goes here
 
+	; Updating window size infos
+		call GetScreenWidth
+		mov  uint64_p [width_u], rax
+
+		movq     xmm0,                        double_p [one_d]
+		cvtsi2sd xmm1,                        rax
+		divsd    xmm0,                        xmm1
+		movq     double_p [one_over_width_d], xmm0
+
+		shr rax,                     1
+		mov uint64_p [half_width_u], rax
+
+		call GetScreenHeight
+		mov  uint64_p [height_u], rax
+
+		movq     xmm0,                         double_p [one_d]
+		cvtsi2sd xmm1,                         rax
+		divsd    xmm0,                         xmm1
+		movq     double_p [one_over_height_d], xmm0
+
+		shr rax,                      1
+		mov uint64_p [half_height_u], rax
+
 	; Handle zoom
 		call  GetMouseWheelMove
 		xorps xmm1, xmm1
@@ -159,6 +184,8 @@ func(static, render_game)
 
 	push r12
 	push r13
+	push r14
+	push r15
 
 	call BeginDrawing
 
@@ -166,6 +193,9 @@ func(static, render_game)
 	call ClearBackground
 
 	; Render code goes here
+
+	mov r14, uint64_p [height_u]
+	mov r15, uint64_p [width_u]
 
 	xor r12, r12
 	.loop_y:
@@ -198,10 +228,10 @@ func(static, render_game)
 			call DrawPixel
 
 			inc r13
-			cmp r13, SCREEN_WIDTH
+			cmp r13, r15
 			jne .loop_x
 		inc r12
-		cmp r12, SCREEN_HEIGHT
+		cmp r12, r14
 		jne .loop_y
 
 	xor  rdi, rdi
@@ -210,6 +240,8 @@ func(static, render_game)
 
 	call EndDrawing
 
+	pop r15
+	pop r14
 	pop r13
 	pop r12
 	
