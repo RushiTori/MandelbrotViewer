@@ -7,18 +7,50 @@ MAX_ITER equ 200
 
 section      .rodata
 
-var(static, float_t, mouse_radius, 50.0e0)
-
 var(static, double_t, neg_d, 0x8000_0000_0000_0000)
-var(static, double_t, x_step_d, 0.0025)
-var(static, double_t, y_step_d, 0.0025)
+
 var(static, double_t, inf_d, 100.0)
-var(static, double_t, view_size_d, 4.0)
-var(static, double_t, view_correction_d, 2.0)
 var(static, double_t, one_over_max_iter_d, 0.005)
 var(static, double_t, uint8max_d, 255.0)
 
+var(static, float_t, zoom_factor_f, 0.99)
+var(static, uint64_t, pan_speed_x_u, 4)
+var(static, uint64_t, pan_speed_y_u, 4)
+
+section      .data
+
+var(static,  uint64_t, width_u, 400)
+var(static,  uint64_t, height_u, 400)
+
+var(static,  uint64_t, half_width_u, 200)
+var(static,  uint64_t, half_height_u, 200)
+
+var(static,  double_t,  one_over_width_d, 0.0025)
+var(static,  double_t,  one_over_height_d, 0.0025)
+
+var(static, double_t, world_size_d, 4.0)
+
+var(static, double_t, view_scale_x_d, 0.01)
+var(static, double_t, view_scale_y_d, 0.01)
+
+var(static, double_t, view_offset_x_d, 0.0)
+var(static, double_t, view_offset_y_d, 0.0)
+
 section      .text
+
+; typedef struct {double x, y} VecD2;
+; VecD2 pixel_to_world(uint64_t x, uint64_t y);
+func(static, pixel_to_world)
+	sub      rdi,  uint64_p [half_width_u]
+	cvtsi2sd xmm0, rdi
+	mulsd    xmm0, double_p [view_scale_x_d]
+	addsd    xmm0, double_p [view_offset_x_d]
+
+	sub      rsi,  uint64_p [half_height_u]
+	cvtsi2sd xmm1, rsi
+	mulsd    xmm1, double_p [view_scale_y_d]
+	addsd    xmm1, double_p [view_offset_y_d]
+	ret
 
 ; uint64_t mandelbrot(double a, double b, double inf, uint64_t iter);
 func(static, mandelbrot)
@@ -61,11 +93,66 @@ func(static, mandelbrot)
 	ret
 
 func(static, update_game)
-	;sub rsp, 8
+	sub rsp, 8
 	
 	; Update code goes here
 
-	;add rsp, 8
+	; Handle zoom
+
+		call  GetMouseWheelMove
+		xorps xmm1, xmm1
+
+		ucomiss  xmm0,                    xmm1
+		je       .skip_zoom
+		xorps    xmm1,                    xmm1
+		mulss    xmm0,                    float_p [zoom_factor_f]
+		cvtss2sd xmm0,                    xmm0
+		movq     xmm1,                    double_p [world_size_d]
+		mulsd    xmm1,                    xmm0
+		movq     double_p [world_size_d], xmm1
+		.skip_zoom:
+
+
+		movq xmm1, double_p [world_size_d]
+
+		movq  xmm0,                      double_p [one_over_width_d]
+		mulsd xmm0,                      xmm1
+		movq  double_p [view_scale_x_d], xmm0
+
+		movq  xmm0,                      double_p [one_over_height_d]
+		mulsd xmm0,                      xmm1
+		movq  double_p [view_scale_y_d], xmm0
+
+	; Handle pan
+		mov  rdi, MOUSE_BUTTON_LEFT
+		call IsMouseButtonDown
+		cmp  al,  false
+		je   .skip_pan
+
+		call     GetMouseDelta
+		movss    xmm1, xmm0
+		shufps xmm0, xmm0, 1
+		cvtss2sd xmm0, xmm0
+		cvtss2sd xmm1, xmm1
+
+		mulsd xmm1,                       double_p [view_scale_x_d]
+		movq  xmm2,                       double_p [view_offset_x_d]
+		subsd xmm2,                       xmm1
+		movq  double_p [view_offset_x_d], xmm2
+
+		mulsd xmm0,                       double_p [view_scale_y_d]
+		movq  xmm2,                       double_p [view_offset_y_d]
+		subsd xmm2,                       xmm0
+		movq  double_p [view_offset_y_d], xmm2
+
+
+		.skip_pan:
+
+
+
+
+
+	add rsp, 8
 	ret
 
 func(static, render_game)
@@ -85,15 +172,9 @@ func(static, render_game)
 	.loop_y:
 		xor r13, r13
 		.loop_x:
-			cvtsi2sd xmm0, r13
-			mulsd    xmm0, double_p [x_step_d]
-			mulsd    xmm0, double_p [view_size_d]
-			subsd    xmm0, double_p [view_correction_d]
-
-			cvtsi2sd xmm1, r12
-			mulsd    xmm1, double_p [y_step_d]
-			mulsd    xmm1, double_p [view_size_d]
-			subsd    xmm1, double_p [view_correction_d]
+			mov  rdi, r13
+			mov  rsi, r12
+			call pixel_to_world
 
 			movq xmm2, double_p [inf_d]
 			mov  rdi,  MAX_ITER
