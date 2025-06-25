@@ -34,6 +34,7 @@ func(global, _start)
 	lea  rsi, [rsp + sizeof(uint64_s)] ; argv
 	call setup_program
 
+	call init_mandelbrot
 	.game_loop:
 		call WindowShouldClose
 		cmp  al, true
@@ -45,6 +46,7 @@ func(global, _start)
 		jmp .game_loop
 	.end_game_loop:
 
+	call free_mandelbrot
 	call CloseWindow
 
 	mov rax, SYSCALL_EXIT

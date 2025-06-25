@@ -7,8 +7,8 @@ TODO: add more color palettes
 
 DONE: vectorize the computation
 
-TODO: don't use DrawPixel,
-	(not done yet) because of memory caching (steps and view stuff)
-	(not done yet) because you can use a texture instead with a static buffer for the pixels
+DONE: don't use DrawPixel,
+	(done) because of memory caching (steps and view stuff)
+	(done) because you can use a texture instead with a static buffer for the pixels
 
 TODO: maybe implement multithreading

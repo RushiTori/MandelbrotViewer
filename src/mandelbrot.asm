@@ -1,9 +1,13 @@
-bits         64
-default      rel
+bits    64
+default rel
 
 %include "mandelbrot.inc"
 
-section      .rodata
+MANDELBROT_BUFFER_WIDTH  equ 1920
+MANDELBROT_BUFFER_HEIGHT equ 1080
+MANDELBROT_BUFFER_LEN    equ (MANDELBROT_BUFFER_WIDTH * MANDELBROT_BUFFER_HEIGHT)
+
+section .rodata
 
 string(static, debug_fmt, "%g, {%g, %g}", 0xa, 0)
 
@@ -19,7 +23,17 @@ var(static, float_t, zoom_factor_f, 0.97)
 var(static, uint64_t, pan_speed_x_u, 4)
 var(static, uint64_t, pan_speed_y_u, 4)
 
-section      .data
+mandelbrot_buffer_img:
+static  mandelbrot_buffer_img: data
+	istruc Image
+		at .data,    dq mandelbrot_buffer
+		at .width,   dd MANDELBROT_BUFFER_WIDTH
+		at .height,  dd MANDELBROT_BUFFER_HEIGHT
+		at .mipmaps, dd 1
+		at .format,  dd PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
+	iend
+
+section .data
 
 var(static,  uint64_t, width_u, 400)
 var(static,  uint64_t, height_u, 400)
@@ -38,7 +52,42 @@ var(static, double_t, view_scale_y_d, 0.01)
 var(static, double_t, view_offset_x_d, 0.0)
 var(static, double_t, view_offset_y_d, 0.0)
 
+section .bss
+
+res_array(static, color_t, mandelbrot_buffer, MANDELBROT_BUFFER_LEN)
+
+mandelbrot_buffer_tex:
+static  mandelbrot_buffer_tex: data
+	resb sizeof(Texture)
+
 section      .text
+
+; Initializes some states for the mandelbrot computation
+; void init_mandelbrot(void);
+func(global, init_mandelbrot)
+	sub    rsp,         8 + 32
+	mov    rax,         qword [mandelbrot_buffer_img]
+	movups xmm0,        [mandelbrot_buffer_img + 8]
+	mov    qword [rsp], rax
+	movups [rsp + 8],   xmm0
+	lea    rdi,         [mandelbrot_buffer_tex]
+	call   LoadTextureFromImage
+	add    rsp,         8 + 32
+	ret
+
+; Frees the states allocated by init_mandelbrot
+; void free_mandelbrot(void);
+func(global, free_mandelbrot)
+	sub rsp, 24
+
+	mov    eax,         dword [mandelbrot_buffer_tex]
+	movups xmm0,        [mandelbrot_buffer_tex + 4]
+	mov    dword [rsp], eax
+	movups [rsp + 4],   xmm0
+	call   UnloadTexture
+
+	add rsp, 24
+	ret
 
 ; typedef struct {double x, y} VecD2;
 ; VecD2 pixel_to_world(uint64_t x, uint64_t y);
@@ -183,21 +232,7 @@ func(static, handle_pan)
 	add rsp, 8
 	ret
 
-; Updates the states of Mandelbrot (zoom, pan, etc.)
-; void update_mandelbrot(void);
-func(global, update_mandelbrot)
-	sub rsp, 8
-
-	call update_screen_sizes
-	call handle_zoom
-	call handle_pan
-
-	add rsp, 8
-	ret
-
-; Renders the Mandelbrot Set
-; void render_mandelbrot(void);
-func(global, render_mandelbrot)
+func(static, update_buffer)
 	sub rsp, 8
 
 	push r12
@@ -232,11 +267,20 @@ func(global, render_mandelbrot)
 			mov      rdx,  0x01_01_01_01
 			mul      edx
 			mov      edx,  eax
+			or       edx,  A_MASK
+			mov      esi,  edx
 
-			or   edx, A_MASK
-			mov  rdi, r13
-			mov  rsi, r12
-			call DrawPixel
+			mov rax,           MANDELBROT_BUFFER_WIDTH
+			mul r12
+			add rax,           r13
+			shl rax,           2
+			lea rdi,           [mandelbrot_buffer]
+			add rdi,           rax
+			mov color_p [rdi], esi
+
+			; mov  rdi, r13
+			; mov  rsi, r12
+			; call DrawPixel
 
 			inc r13
 			cmp r13, r15
@@ -251,4 +295,44 @@ func(global, render_mandelbrot)
 	pop r12
 	
 	add rsp, 8
+	ret
+
+; Updates the states of Mandelbrot (zoom, pan, etc.)
+; void update_mandelbrot(void);
+func(global, update_mandelbrot)
+	sub rsp, 24
+
+	call update_screen_sizes
+	call handle_zoom
+	call handle_pan
+	call update_buffer
+
+	mov    eax,         dword [mandelbrot_buffer_tex]
+	movups xmm0,        [mandelbrot_buffer_tex + 4]
+	mov    dword [rsp], eax
+	movups [rsp + 4],   xmm0
+
+	lea  rdi, [mandelbrot_buffer]
+	call UpdateTexture
+
+	add rsp, 24
+	ret
+
+; Renders the Mandelbrot Set
+; void render_mandelbrot(void);
+func(global, render_mandelbrot)
+	sub rsp, 24
+
+	mov    eax,         dword [mandelbrot_buffer_tex]
+	movups xmm0,        [mandelbrot_buffer_tex + 4]
+	mov    dword [rsp], eax
+	movups [rsp + 4],   xmm0
+
+	xor rdi, rdi
+	xor rsi, rsi
+	mov rdx, COLOR_WHITE
+
+	call DrawTexture
+
+	add rsp, 24
 	ret
