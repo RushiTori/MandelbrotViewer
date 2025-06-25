@@ -3,6 +3,8 @@ default rel
 
 %include "mandelbrot.inc"
 
+extern  pow
+
 MANDELBROT_BUFFER_WIDTH  equ 1920
 MANDELBROT_BUFFER_HEIGHT equ 1080
 MANDELBROT_BUFFER_LEN    equ (MANDELBROT_BUFFER_WIDTH * MANDELBROT_BUFFER_HEIGHT)
@@ -18,7 +20,7 @@ var(static, double_t, neg_d, 0x8000_0000_0000_0000)
 var(static, double_t, inf_d, 100.0)
 var(static, double_t, one_over_max_iter_d, 0.01)
 
-var(static, float_t, zoom_factor_f, 0.97)
+var(static, double_t, zoom_factor_d, 0.95)
 var(static, uint64_t, pan_speed_x_u, 4)
 var(static, uint64_t, pan_speed_y_u, 4)
 
@@ -183,23 +185,14 @@ func(static, update_screen_sizes)
 func(static, handle_zoom)
 	sub rsp, 8
 
-	call  GetMouseWheelMove
-	xorps xmm1, xmm1
+	call     GetMouseWheelMove
+	cvtss2sd xmm1,                    xmm0
+	movq     xmm0,                    double_p [zoom_factor_d]
+	call     pow
+	mulsd    xmm0,                    double_p [world_size_d]
+	movq     double_p [world_size_d], xmm0
 
-	ucomiss xmm0, xmm1
-	je      .skip_zoom
-		xorps    xmm1,                    xmm1
-		mulss    xmm0,                    float_p [zoom_factor_f]
-		cvtss2sd xmm0,                    xmm0
-		movq     xmm1,                    double_p [world_size_d]
-		mulsd    xmm1,                    xmm0
-		movq     xmm0,                    double_p [neg_d]
-		orpd     xmm1,                    xmm0
-		xorpd    xmm1,                    xmm0
-		movq     double_p [world_size_d], xmm1
-	.skip_zoom:
-
-	movq xmm1, double_p [world_size_d]
+	movsd xmm1, xmm0
 
 	movq  xmm0,                      double_p [one_over_width_d]
 	mulsd xmm0,                      xmm1
