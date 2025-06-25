@@ -4,7 +4,7 @@
 %include "raylib.inc"
 %include "std.inc"
 
-; Max number of iteration of the mandelbrot algorith per pixel
+; Max number of iteration of the mandelbrot algorithm per pixel
 MAX_ITER equ 100
 
 ; Initializes some states for the mandelbrot computation
