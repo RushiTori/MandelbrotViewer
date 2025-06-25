@@ -17,7 +17,6 @@ var(static, double_t, neg_d, 0x8000_0000_0000_0000)
 
 var(static, double_t, inf_d, 100.0)
 var(static, double_t, one_over_max_iter_d, 0.01)
-var(static, double_t, uint8max_d, 255.0)
 
 var(static, float_t, zoom_factor_f, 0.97)
 var(static, uint64_t, pan_speed_x_u, 4)
@@ -51,6 +50,8 @@ var(static, double_t, view_scale_y_d, 0.01)
 
 var(static, double_t, view_offset_x_d, 0.0)
 var(static, double_t, view_offset_y_d, 0.0)
+
+var(static, pointer_t, current_theme_callback, theme_gray_scale)
 
 section .bss
 
@@ -87,6 +88,14 @@ func(global, free_mandelbrot)
 	call   UnloadTexture
 
 	add rsp, 24
+	ret
+
+; Sets the current function used to compute the color of the mandelbrot (default: theme_gray_scale)
+;     double: [0...1] percentage of the iteration done over MAX_ITER before reaching infinity
+;     bool: shot-hand for (double == 1.0), tells if the current position did NOT reach infinity in MAX_ITER iterations
+; void set_mandelbrot_theme_callback(Color (*f)(double, bool))
+func(global, set_mandelbrot_theme_callback)
+	mov pointer_p [current_theme_callback], rdi
 	ret
 
 ; typedef struct {double x, y} VecD2;
@@ -233,12 +242,13 @@ func(static, handle_pan)
 	ret
 
 func(static, update_buffer)
-	sub rsp, 8
-
+	push rbx
 	push r12
 	push r13
 	push r14
 	push r15
+
+	mov rbx, pointer_p [current_theme_callback]
 
 	mov r14, uint64_p [height_u]
 	mov r15, uint64_p [width_u]
@@ -255,32 +265,26 @@ func(static, update_buffer)
 			mov  rdi,  MAX_ITER
 			call mandelbrot
 
-			cmp      rax,  MAX_ITER
-			jne      .skip_zero
-			xor      rax,  rax
-			.skip_zero:
+			mov dil, false
+			cmp rax, MAX_ITER
+			jne .skip_far_from_inf
+			mov dil, true
+			.skip_far_from_inf:
+
 			cvtsi2sd xmm0, rax
-
 			mulsd    xmm0, double_p [one_over_max_iter_d]
-			mulsd    xmm0, double_p [uint8max_d]
-			cvtsd2si rax,  xmm0
-			mov      rdx,  0x01_01_01_01
-			mul      edx
-			mov      edx,  eax
-			or       edx,  A_MASK
-			mov      esi,  edx
 
-			mov rax,           MANDELBROT_BUFFER_WIDTH
+			call rbx
+			mov  esi, eax
+
+			mov rax, MANDELBROT_BUFFER_WIDTH
 			mul r12
-			add rax,           r13
-			shl rax,           2
+			add rax, r13
+			shl rax, 2
+
 			lea rdi,           [mandelbrot_buffer]
 			add rdi,           rax
 			mov color_p [rdi], esi
-
-			; mov  rdi, r13
-			; mov  rsi, r12
-			; call DrawPixel
 
 			inc r13
 			cmp r13, r15
@@ -293,8 +297,7 @@ func(static, update_buffer)
 	pop r14
 	pop r13
 	pop r12
-	
-	add rsp, 8
+	pop rbx
 	ret
 
 ; Updates the states of Mandelbrot (zoom, pan, etc.)

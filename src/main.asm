@@ -1,11 +1,32 @@
-bits         64
-default      rel
+bits    64
+default rel
 
 %include "main.inc"
 
-section      .text
+section .text
+
+%macro try_change_theme_base 2
+	mov  rdi, %1
+	call IsKeyPressed
+	cmp  al,  false
+	je   %%skip_theme
+		mov  rdi, %2
+		call set_mandelbrot_theme_callback
+	%%skip_theme:
+%endmacro
+
+%define try_change_theme(key, theme_callback) try_change_theme_base key, theme_callback
 
 func(static, update_game)
+	sub rsp, 8
+
+	try_change_theme(KEY_SPACE, theme_gray_scale)
+	try_change_theme(KEY_KP_0,  theme_hue_full)
+	try_change_theme(KEY_KP_1,  theme_hue_red)
+	try_change_theme(KEY_KP_2,  theme_hue_green)
+	try_change_theme(KEY_KP_3,  theme_hue_blue)
+	
+	add rsp, 8
 	jmp update_mandelbrot
 
 func(static, render_game)
@@ -35,6 +56,7 @@ func(global, _start)
 	call setup_program
 
 	call init_mandelbrot
+
 	.game_loop:
 		call WindowShouldClose
 		cmp  al, true

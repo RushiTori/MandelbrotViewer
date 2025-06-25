@@ -1,9 +1,11 @@
 DONE: add zoom and panning
 
-TODO: add more color palettes
-	(default)      black/white gradient
-	(not done yet) hue gradient
-	(not done yet) custom color palette from CLI (not sure how to do that yet !)
+DONE: add more color palettes
+	(default) black/white gradient
+	(done)    hue gradient (full)
+	(done)    hue gradient (red)
+	(done)    hue gradient (green)
+	(done)    hue gradient (blue)
 
 DONE: vectorize the computation
 
