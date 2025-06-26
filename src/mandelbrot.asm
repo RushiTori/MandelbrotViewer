@@ -42,11 +42,6 @@ var(static,  uint64_t, height_u, 400)
 var(static,  uint64_t, half_width_u, 200)
 var(static,  uint64_t, half_height_u, 200)
 
-var(static,  double_t,  one_over_width_d, 0.0025)
-var(static,  double_t,  one_over_height_d, 0.0025)
-
-var(static, double_t, world_size_d, 4.0)
-
 var(static, double_t, view_scale_x_d, 0.01)
 var(static, double_t, view_scale_y_d, 0.01)
 
@@ -158,26 +153,14 @@ func(static, update_screen_sizes)
 	sub rsp, 8
 
 	call GetScreenWidth
-	mov  uint64_p [width_u], rax
-
-	movq     xmm0,                        double_p [one_d]
-	cvtsi2sd xmm1,                        rax
-	divsd    xmm0,                        xmm1
-	movq     double_p [one_over_width_d], xmm0
-
-	shr rax,                     1
-	mov uint64_p [half_width_u], rax
+	mov  uint64_p [width_u],      rax
+	shr  rax,                     1
+	mov  uint64_p [half_width_u], rax
 
 	call GetScreenHeight
-	mov  uint64_p [height_u], rax
-
-	movq     xmm0,                         double_p [one_d]
-	cvtsi2sd xmm1,                         rax
-	divsd    xmm0,                         xmm1
-	movq     double_p [one_over_height_d], xmm0
-
-	shr rax,                      1
-	mov uint64_p [half_height_u], rax
+	mov  uint64_p [height_u],      rax
+	shr  rax,                      1
+	mov  uint64_p [half_height_u], rax
 
 	add rsp, 8
 	ret
@@ -186,21 +169,15 @@ func(static, handle_zoom)
 	sub rsp, 8
 
 	call     GetMouseWheelMove
-	cvtss2sd xmm1,                    xmm0
-	movq     xmm0,                    double_p [zoom_factor_d]
+	cvtss2sd xmm1, xmm0
+	movq     xmm0, double_p [zoom_factor_d]
 	call     pow
-	mulsd    xmm0,                    double_p [world_size_d]
-	movq     double_p [world_size_d], xmm0
-
-	movsd xmm1, xmm0
-
-	movq  xmm0,                      double_p [one_over_width_d]
-	mulsd xmm0,                      xmm1
+	movsd    xmm1, xmm0
+	
+	mulsd xmm0,                      double_p [view_scale_x_d]
 	movq  double_p [view_scale_x_d], xmm0
-
-	movq  xmm0,                      double_p [one_over_height_d]
-	mulsd xmm0,                      xmm1
-	movq  double_p [view_scale_y_d], xmm0
+	mulsd xmm1,                      double_p [view_scale_y_d]
+	movq  double_p [view_scale_y_d], xmm1
 
 	add rsp, 8
 	ret
