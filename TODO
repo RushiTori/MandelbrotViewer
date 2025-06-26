@@ -13,4 +13,4 @@ DONE: don't use DrawPixel,
 	(done) because of memory caching (steps and view stuff)
 	(done) because you can use a texture instead with a static buffer for the pixels
 
-TODO: maybe implement multithreading
+DONE: maybe implement multithreading

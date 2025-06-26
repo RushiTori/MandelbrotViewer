@@ -58,6 +58,12 @@ mandelbrot_buffer_tex:
 static  mandelbrot_buffer_tex: data
 	resb sizeof(Texture)
 
+res_array(static, pthread_t, threads, MAX_THREAD_COUNT)
+
+res(static,  uint64_t, thread_pix_height)
+
+res_array(static, uint64_t, thread_starts, MAX_THREAD_COUNT)
+
 section      .text
 
 ; Initializes some states for the mandelbrot computation
@@ -211,7 +217,8 @@ func(static, handle_pan)
 	add rsp, 8
 	ret
 
-func(static, update_buffer)
+; void thread_work(uint64_t* start_y)
+func(static, thread_work)
 	push rbx
 	push r12
 	push r13
@@ -220,10 +227,12 @@ func(static, update_buffer)
 
 	mov rbx, pointer_p [current_theme_callback]
 
-	mov r14, uint64_p [height_u]
+	;mov r14, uint64_p [height_u]
 	mov r15, uint64_p [width_u]
 
-	xor r12, r12
+	mov r12, uint64_p [rdi]
+	mov r14, uint64_p [thread_pix_height]
+	add r14, r12
 	.loop_y:
 		xor r13, r13
 		.loop_x:
@@ -268,6 +277,74 @@ func(static, update_buffer)
 	pop r13
 	pop r12
 	pop rbx
+	ret
+
+func(static, update_buffer)
+	xor  rdx, rdx
+	mov  rax, uint64_p [height_u]
+	mov  rcx, MAX_THREAD_COUNT
+	idiv rcx
+	cmp  rdx, 0
+	je   .skip_ceil
+		inc rax
+	.skip_ceil:
+
+	mov uint64_p [thread_pix_height], rax
+	
+	lea rdi, [thread_starts]
+	xor rsi, rsi
+	.setup_thread_offsets:
+		mov  uint64_p [rdi], rsi
+		add  rdi,            sizeof(uint64_s)
+		add  rsi,            rax
+		loop .setup_thread_offsets
+
+	push r12
+
+	xor r12, r12
+	.create_threads:
+		mov rax, r12
+		shl rax, 3
+		
+		lea rdi, [threads]
+		add rdi, rax
+
+		xor rsi, rsi
+
+		lea rdx, [thread_work]
+		
+		lea rcx, [thread_starts]
+		add rcx, rax
+
+		call pthread_create
+
+		inc r12
+		cmp r12, MAX_THREAD_COUNT
+		jne .create_threads
+
+	xor r12, r12
+	.join_threads:
+		mov rax, r12
+		shl rax, 3
+		
+		lea rdi, [threads]
+		add rdi, rax
+		mov rdi, pthread_p [rdi]
+
+		xor rsi, rsi
+
+		lea rdx, [thread_work]
+		
+		lea rcx, [thread_starts]
+		add rcx, rax
+
+		call pthread_join
+
+		inc r12
+		cmp r12, MAX_THREAD_COUNT
+		jne .join_threads
+
+	pop r12
 	ret
 
 ; Updates the states of Mandelbrot (zoom, pan, etc.)

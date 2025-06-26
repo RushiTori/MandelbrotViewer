@@ -2,6 +2,7 @@
 %define MANDELBROT_INC
 
 %include "themes.inc"
+%include "thread.inc"
 
 ; Max number of iteration of the mandelbrot algorithm per pixel
 MAX_ITER equ 100
