@@ -5,7 +5,7 @@
 %include "thread.inc"
 
 ; Max number of iteration of the mandelbrot algorithm per pixel
-MAX_ITER equ 100
+MAX_ITER equ 1000
 
 ; Initializes some states for the mandelbrot computation
 ; void init_mandelbrot(void);
@@ -16,8 +16,8 @@ extern init_mandelbrot
 extern free_mandelbrot
 
 ; Sets the current function used to compute the color of the mandelbrot (default: theme_gray_scale)
-;     double: [0...1] percentage of the iteration done over MAX_ITER before reaching infinity
-;     bool: shot-hand for (double == 1.0), tells if the current position did NOT reach infinity in MAX_ITER iterations
+;     double: [0...10] percentage of the iteration done over MAX_ITER before reaching infinity
+;     bool: tells if the current position did NOT reach infinity in MAX_ITER iterations
 ; void set_mandelbrot_theme_callback(Color (*f)(double, bool))
 extern set_mandelbrot_theme_callback
 
